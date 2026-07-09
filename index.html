@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Daily Leaderboard Engine</title>
+    <!-- Tailwind CSS for rich utilities -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons for clean UI illustrations -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col antialiased">
+
+    <!-- Application Main Container -->
+    <div id="app" class="flex-grow flex flex-col min-h-screen relative overflow-x-hidden">
+        
+        <!-- Interactive Banner / Toast Notification Container -->
+        <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+        <!-- Embedded Mode Indicator / Top Ribbon -->
+        <div id="embed-ribbon" class="bg-indigo-600 text-white text-xs py-1 px-4 text-center font-medium hidden">
+            ✨ Embed View Mode — Real-time Updates Activated
+        </div>
+
+        <!-- Header Bar -->
+        <header id="main-header" class="bg-white border-b border-slate-200 py-4 px-6 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Leaderboard Portal</h1>
+                    <p class="text-xs text-slate-500">Live, interactive rankings matching your spreadsheet</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="admin-trigger-btn" class="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold shadow-md transition-all">
+                    <i data-lucide="settings-2" class="w-4 h-4"></i>
+                    Admin Settings
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Display Arena -->
+        <main class="flex-grow max-w-5xl w-full mx-auto p-4 md:p-8 flex flex-col gap-8">
+
+            <!-- Empty State / Welcome Setup Screen -->
+            <section id="setup-view" class="hidden flex-grow flex flex-col justify-center items-center text-center py-16 px-4 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                <div class="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
+                    <i data-lucide="layout-template" class="w-12 h-12"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Welcome to your Daily Leaderboard!</h2>
+                <p class="text-slate-500 max-w-md mb-6 text-sm">
+                    Let's set up your custom leaderboard layout, administrative password, and copy-paste your initial spreadsheet data to start.
+                </p>
+                <button onclick="openAdminModal(true)" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-100 transition-all flex items-center gap-2">
+                    <i data-lucide="rocket" class="w-5 h-5"></i>
+                    Launch Setup Wizard
+                </button>
+            </section>
+
+            <!-- Leaderboard Display Screen -->
+            <section id="leaderboard-view" class="space-y-8">
+                
+                <!-- Custom Dashboard Header -->
+                <div class="text-center md:text-left flex flex-col md:flex-row md:items-end md:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <div>
+                        <h2 id="board-title" class="text-3xl font-extrabold tracking-tight text-slate-900">Leaderboard Loading...</h2>
+                        <p id="board-subtitle" class="text-slate-500 mt-1 text-sm">Updated daily based on quiz scores</p>
+                    </div>
+                    <div class="flex flex-col items-center md:items-end gap-1.5 self-center md:self-end">
+                        <span class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Last Refreshed</span>
+                        <div class="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-medium text-slate-600">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span id="board-last-updated">Updating...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top 3 Podium (Visual Showcase) -->
+                <div id="podium-section" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end pt-12 pb-6 max-w-3xl mx-auto">
+                    <!-- Rank 2 Card -->
+                    <div id="podium-2" class="order-2 md:order-1 bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 text-center flex flex-col items-center relative transition-transform hover:-translate-y-1 hover:shadow-lg duration-300 min-h-[220px]">
+                        <div class="absolute -top-7 w-14 h-14 rounded-full border-4 border-slate-200 bg-white shadow flex items-center justify-center text-xl font-bold text-slate-700">
+                            2
+                        </div>
+                        <div class="mt-8 flex flex-col items-center flex-grow justify-between w-full">
+                            <div>
+                                <h3 class="name-text text-lg font-bold text-slate-800 line-clamp-1">Silver Runner</h3>
+                                <p class="subtext-text text-xs text-slate-400 font-medium mt-0.5 line-clamp-1">-</p>
+                            </div>
+                            <div class="mt-4">
+                                <span class="score-text text-2xl font-black text-slate-700">-</span>
+                                <span class="text-xs text-slate-400 block font-semibold uppercase tracking-wider mt-1">Score</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rank 1 Card -->
+                    <div id="podium-1" class="order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white rounded-3xl border-2 border-amber-300 shadow-xl p-8 text-center flex flex-col items-center relative transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]">
+                        <!-- Shiny Golden Crown -->
+                        <div class="absolute -top-12 text-amber-500 animate-bounce duration-1000">
+                            <i data-lucide="crown" class="w-10 h-10 fill-amber-400"></i>
+                        </div>
+                        <div class="absolute -top-7 w-16 h-16 rounded-full border-4 border-amber-300 bg-white shadow-md flex items-center justify-center text-2xl font-black text-amber-600">
+                            1
+                        </div>
+                        <div class="mt-10 flex flex-col items-center flex-grow justify-between w-full">
+                            <div>
+                                <h3 class="name-text text-xl font-extrabold text-slate-900 line-clamp-1">Gold Leader</h3>
+                                <p class="subtext-text text-xs text-amber-700/70 font-semibold mt-0.5 line-clamp-1">-</p>
+                            </div>
+                            <div class="mt-4">
+                                <span class="score-text text-3xl font-black text-amber-600">-</span>
+                                <span class="text-xs text-amber-700 block font-bold uppercase tracking-wider mt-1">Points</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rank 3 Card -->
+                    <div id="podium-3" class="order-3 bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 text-center flex flex-col items-center relative transition-transform hover:-translate-y-1 hover:shadow-lg duration-300 min-h-[200px]">
+                        <div class="absolute -top-7 w-14 h-14 rounded-full border-4 border-amber-700/30 bg-white shadow flex items-center justify-center text-xl font-bold text-amber-800">
+                            3
+                        </div>
+                        <div class="mt-8 flex flex-col items-center flex-grow justify-between w-full">
+                            <div>
+                                <h3 class="name-text text-lg font-bold text-slate-800 line-clamp-1">Bronze Hero</h3>
+                                <p class="subtext-text text-xs text-slate-400 font-medium mt-0.5 line-clamp-1">-</p>
+                            </div>
+                            <div class="mt-4">
+                                <span class="score-text text-2xl font-black text-slate-700">-</span>
+                                <span class="text-xs text-slate-400 block font-semibold uppercase tracking-wider mt-1">Score</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Filter and Data List Container -->
+                <div class="bg-white rounded-3xl border border-slate-150 shadow-md overflow-hidden">
+                    
+                    <!-- Search and Utility Bar -->
+                    <div id="utility-bar" class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div class="relative w-full sm:max-w-xs">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </span>
+                            <input id="search-input" type="text" placeholder="Search competitor..." class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm">
+                        </div>
+
+                        <!-- Dropdown page size selector -->
+                        <div class="flex items-center gap-2 text-sm text-slate-500 self-end sm:self-auto">
+                            <span>Showing</span>
+                            <select id="page-size-select" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                <option value="5">5 rows</option>
+                                <option value="10" selected>10 rows</option>
+                                <option value="25">25 rows</option>
+                                <option value="50">50 rows</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Rankings List -->
+                    <div id="table-body" class="divide-y divide-slate-100">
+                        <!-- Javascript generates rows dynamically inside here -->
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div class="p-4 bg-slate-50/40 border-t border-slate-100 flex items-center justify-between">
+                        <button id="prev-page-btn" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            Previous
+                        </button>
+                        <span id="pagination-info" class="text-xs font-semibold text-slate-500">
+                            Page 1 of 1
+                        </span>
+                        <button id="next-page-btn" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Admin Settings Modal Overlay -->
+        <div id="admin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300 opacity-0 pointer-events-none">
+            <div id="admin-panel" class="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300">
+                
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <div class="flex items-center gap-2">
+                        <span class="p-1.5 bg-slate-900 text-white rounded-lg">
+                            <i data-lucide="wrench" class="w-5 h-5"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Leaderboard Studio</h3>
+                            <p class="text-xs text-slate-500">Modify data and style properties</p>
+                        </div>
+                    </div>
+                    <button onclick="closeAdminModal()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Admin Gate Screen (Passcode Lock) -->
+                <div id="admin-auth-screen" class="flex-grow flex flex-col justify-center items-center p-8 max-w-md mx-auto text-center">
+                    <div class="p-3.5 bg-amber-50 text-amber-500 rounded-full mb-4">
+                        <i data-lucide="lock" class="w-8 h-8"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900 mb-2">Administrative Verification Required</h4>
+                    <p class="text-slate-500 text-sm mb-6">Enter your administrator passcode to edit rows, configure sheets, or adjust formatting styles.</p>
+                    
+                    <div class="w-full space-y-4">
+                        <input id="admin-passcode-input" type="password" placeholder="••••••••" class="w-full px-4 py-2.5 text-center tracking-widest text-lg bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button id="verify-passcode-btn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md">
+                            Unlock Portal
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Action Console -->
+                <div id="admin-console-screen" class="hidden flex-grow overflow-y-auto p-6 space-y-8">
+                    
+                    <!-- Quick Setup Guide -->
+                    <div class="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex gap-3">
+                        <div class="text-indigo-600 mt-0.5"><i data-lucide="info" class="w-5 h-5"></i></div>
+                        <div class="text-xs text-indigo-900/90 space-y-1">
+                            <p class="font-bold">How to import daily data from Sheets/Excel:</p>
+                            <p>1. Copy the column block from your spreadsheet software (including headers).</p>
+                            <p>2. Paste the raw data into the paste box below.</p>
+                            <p>3. Map column tags (Name, Score, Trend) and tap "Apply". Your embed is auto-updated instantly!</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 1: Title Configuration -->
+                    <div class="space-y-3">
+                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider">1. Brand Configuration</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Leaderboard Title</label>
+                                <input id="config-title" type="text" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Subtitle / Description</label>
+                                <input id="config-subtitle" type="text" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Data Copy-Paste -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider">2. Paste Spreadsheet Data</h4>
+                            <span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">TSV / CSV Supported</span>
+                        </div>
+                        <textarea id="config-raw-data" rows="6" placeholder="Paste columns here directly from Excel or Google Sheets (including header titles)...&#10;e.g.&#10;Name&#9;Points&#9;Department&#9;Trend&#10;John Doe&#9;940&#9;Sales&#9;+1&#10;Jane Smith&#9;890&#9;Marketing&#9;-1" class="w-full p-3 font-mono text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50"></textarea>
+                        
+                        <div class="flex justify-end">
+                            <button id="parse-data-btn" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                Parse Headers & Columns
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Column Field Mappings -->
+                    <div id="mapping-panel" class="p-5 bg-slate-50 rounded-2xl border border-slate-150 space-y-4 hidden">
+                        <h5 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="columns" class="w-4 h-4 text-indigo-500"></i>
+                            Configure Column Meanings
+                        </h5>
+                        <p class="text-[11px] text-slate-400">Map which columns in your sheet correlate to the display properties.</p>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-500 mb-1">Competitor Name (Required)</label>
+                                <select id="mapping-name" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-2"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-500 mb-1">Score / Numerical Value (Required)</label>
+                                <select id="mapping-score" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-2"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-500 mb-1">Trend Indicator (Optional)</label>
+                                <select id="mapping-trend" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-2">
+                                    <option value="">-- No Trend Field --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-500 mb-1">Secondary Subtext (Optional)</label>
+                                <select id="mapping-subtext" class="w-full text-xs bg-white border border-slate-200 rounded-lg p-2">
+                                    <option value="">-- No Subtext --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Widget Customizer Options -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider">3. Display & Embed Setup</h4>
+                        
+                        <!-- Toggle options -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100/50 transition-colors">
+                                <input id="opt-show-podium" type="checkbox" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-xs font-semibold text-slate-600">Show Top 3 Podium</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100/50 transition-colors">
+                                <input id="opt-show-search" type="checkbox" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-xs font-semibold text-slate-600">Show Search Utility</span>
+                            </label>
+                        </div>
+
+                        <!-- Themes -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-2">Visual Theme Accent</label>
+                            <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                <button type="button" onclick="setAccentTheme('indigo')" class="theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-indigo-600 bg-indigo-50 text-indigo-700" data-theme="indigo">Indigo</button>
+                                <button type="button" onclick="setAccentTheme('emerald')" class="theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-slate-200 hover:bg-slate-50" data-theme="emerald">Emerald</button>
+                                <button type="button" onclick="setAccentTheme('amber')" class="theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-slate-200 hover:bg-slate-50" data-theme="amber">Amber</button>
+                                <button type="button" onclick="setAccentTheme('rose')" class="theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-slate-200 hover:bg-slate-50" data-theme="rose">Rose</button>
+                                <button type="button" onclick="setAccentTheme('slate')" class="theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-slate-200 hover:bg-slate-50" data-theme="slate">Cyberpunk</button>
+                            </div>
+                        </div>
+
+                        <!-- Embed Code Display -->
+                        <div class="p-4 bg-slate-900 text-slate-100 rounded-2xl relative space-y-2">
+                            <span class="text-[10px] uppercase font-bold text-indigo-400">Embed iframe Code</span>
+                            <p class="text-[11px] text-slate-300">Copy this code to place the daily-updating leaderboard on your own site.</p>
+                            <textarea id="embed-code-box" readonly class="w-full bg-slate-950 border border-slate-800 text-slate-400 rounded-lg p-2 text-[11px] font-mono select-all focus:outline-none h-14"></textarea>
+                            <button id="copy-embed-btn" class="absolute top-2 right-2 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold transition-all">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Passcode Changer -->
+                    <div class="border-t border-slate-200 pt-6 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Panel</h4>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input id="config-passcode" type="password" placeholder="Change Admin Passcode" class="px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 flex-grow">
+                            <button id="update-passcode-btn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
+                                Change Key
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Admin Action Footer (Save Trigger) -->
+                <div id="admin-footer" class="hidden p-4 border-t border-slate-200 flex justify-between items-center bg-slate-50">
+                    <span id="sync-status" class="text-xs font-medium text-slate-400">Offline changes only</span>
+                    <div class="flex gap-2">
+                        <button onclick="closeAdminModal()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold rounded-xl transition-all">
+                            Discard
+                        </button>
+                        <button id="save-config-btn" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1">
+                            <i data-lucide="cloud-lightning" class="w-4 h-4"></i>
+                            Publish Updates
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firestore / Auth Integrations -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Constants and State Variables
+        const defaultAppId = 'daily-sheets-leaderboard';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : defaultAppId;
+        
+        let db = null;
+        let auth = null;
+        let isCloudActive = false;
+        let isAuthenticated = false;
+
+        // Current active dataset schema
+        let activeConfig = {
+            title: "🏆 High Performers Leaderboard",
+            subtitle: "Updated daily based on quiz scores",
+            theme: "indigo",
+            headers: ["Name", "Score", "Region", "Trend"],
+            rows: [
+                { "Name": "Alex Rivera", "Score": "942", "Region": "West Coast", "Trend": "+2" },
+                { "Name": "Jordan Blake", "Score": "890", "Region": "East Coast", "Trend": "-1" },
+                { "Name": "Samantha Chen", "Score": "820", "Region": "APAC Division", "Trend": "0" },
+                { "Name": "Amir Moss", "Score": "780", "Region": "Midwest Dept", "Trend": "+4" },
+                { "Name": "Taylor Swift", "Score": "720", "Region": "Entertainment", "Trend": "-2" },
+                { "Name": "Bruce Wayne", "Score": "640", "Region": "Gotham Branch", "Trend": "0" }
+            ],
+            columnMappings: {
+                nameKey: "Name",
+                scoreKey: "Score",
+                trendKey: "Trend",
+                subtextKey: "Region"
+            },
+            embedSettings: {
+                showSearch: true,
+                showPodium: true,
+                rowsPerPage: 10
+            },
+            lastUpdated: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            passcode: "admin123"
+        };
+
+        // Temporary parse states inside configuration mapping
+        let parsedPayload = null;
+
+        // Visual Accents configuration helper mapping
+        const themeConfig = {
+            indigo: { primary: 'bg-indigo-600', text: 'text-indigo-600', border: 'border-indigo-100', borderActive: 'border-indigo-500', bg: 'bg-indigo-50', gradient: 'from-indigo-50', ring: 'focus:ring-indigo-500' },
+            emerald: { primary: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-100', borderActive: 'border-emerald-500', bg: 'bg-emerald-50', gradient: 'from-emerald-50', ring: 'focus:ring-emerald-500' },
+            amber: { primary: 'bg-amber-500', text: 'text-amber-600', border: 'border-amber-100', borderActive: 'border-amber-500', bg: 'bg-amber-50', gradient: 'from-amber-50', ring: 'focus:ring-amber-500' },
+            rose: { primary: 'bg-rose-600', text: 'text-rose-600', border: 'border-rose-100', borderActive: 'border-rose-500', bg: 'bg-rose-50', gradient: 'from-rose-50', ring: 'focus:ring-rose-500' },
+            slate: { primary: 'bg-slate-800', text: 'text-slate-800', border: 'border-slate-200', borderActive: 'border-slate-800', bg: 'bg-slate-100', gradient: 'from-slate-100', ring: 'focus:ring-slate-800' }
+        };
+
+        /**
+         * Initialize Firebase authentication and configuration subscription
+         */
+        async function bootSystem() {
+            let configFoundInCloud = false;
+
+            if (typeof __firebase_config !== 'undefined') {
+                try {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    // Sign-in Auth Flow priority
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    
+                    isCloudActive = true;
+                    document.getElementById('sync-status').innerHTML = `<span class="flex items-center gap-1 text-emerald-600"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span> Cloud Active</span>`;
+                    
+                    // Listen to Firestore real-time updates
+                    const docPath = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', 'current');
+                    onSnapshot(docPath, (docSnap) => {
+                        if (docSnap.exists()) {
+                            activeConfig = docSnap.data();
+                            configFoundInCloud = true;
+                            renderLeaderboard();
+                            syncAdminPanelValues();
+                        } else {
+                            // First run without existing configuration - Save default placeholder
+                            setDoc(docPath, activeConfig).then(() => {
+                                renderLeaderboard();
+                            });
+                        }
+                    }, (err) => {
+                        console.warn("Real-time sync subscription permission restricted, using LocalStorage fallback.", err);
+                        isCloudActive = false;
+                        document.getElementById('sync-status').innerHTML = `<span class="text-slate-400">Fallback LocalStorage</span>`;
+                    });
+
+                } catch (e) {
+                    console.error("Cloud database initial setup failure. Standard fallback engaged:", e);
+                    isCloudActive = false;
+                }
+            }
+
+            if (!isCloudActive || !configFoundInCloud) {
+                // Recover configurations from LocalStorage if offline/restricted
+                const localData = localStorage.getItem(`ldr_cfg_${appId}`);
+                if (localData) {
+                    try {
+                        activeConfig = JSON.parse(localData);
+                    } catch (e) {
+                        console.error("Local storage schema mismatch, resetting fallback template.");
+                    }
+                }
+                renderLeaderboard();
+                syncAdminPanelValues();
+            }
+
+            // Handle standard viewport configuration based on embeds (e.g., hiding headers if embed params exist)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('embed') === 'true' || urlParams.get('iframe') === 'true') {
+                document.getElementById('main-header').classList.add('hidden');
+                document.getElementById('embed-ribbon').classList.remove('hidden');
+                document.body.classList.replace('bg-slate-50', 'bg-transparent');
+            }
+        }
+
+        // Search and pagination state
+        let searchKeyword = "";
+        let currentPage = 1;
+
+        // UI Event Listeners
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            searchKeyword = e.target.value.toLowerCase();
+            currentPage = 1;
+            renderTableRowsOnly();
+        });
+
+        document.getElementById('page-size-select').addEventListener('change', () => {
+            currentPage = 1;
+            renderTableRowsOnly();
+        });
+
+        document.getElementById('prev-page-btn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTableRowsOnly();
+            }
+        });
+
+        document.getElementById('next-page-btn').addEventListener('click', () => {
+            const pageSize = parseInt(document.getElementById('page-size-select').value);
+            const itemsToPaginate = getFilteredRows();
+            const totalPages = Math.ceil(itemsToPaginate.length / pageSize);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTableRowsOnly();
+            }
+        });
+
+        /**
+         * Parses the pasted TSV (spreadsheet cells copied directly) or standard CSV block
+         */
+        function handleImportParsing() {
+            const rawText = document.getElementById('config-raw-data').value;
+            if (!rawText || !rawText.trim()) {
+                triggerToast("Paste area cannot be empty!", "error");
+                return;
+            }
+
+            const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(line => line !== "");
+            if (lines.length < 2) {
+                triggerToast("Insufficient lines. Paste at least 1 header line and 1 data row.", "error");
+                return;
+            }
+
+            // Detect tab separation (Google Sheets/Excel direct clipboard copies) or comma values
+            let separator = '\t';
+            const sampleHeader = lines[0];
+            if (!sampleHeader.includes('\t') && sampleHeader.includes(',')) {
+                separator = ',';
+            }
+
+            const headers = lines[0].split(separator).map(h => h.trim().replace(/^["']|["']$/g, ""));
+            const rows = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(separator).map(p => p.trim().replace(/^["']|["']$/g, ""));
+                // Keep mapping properties aligned even if some cells are blank
+                const rowObj = {};
+                headers.forEach((header, index) => {
+                    rowObj[header] = parts[index] !== undefined ? parts[index] : "";
+                });
+                rows.push(rowObj);
+            }
+
+            parsedPayload = { headers, rows };
+
+            // Update Field Mapping Selectors inside Admin panel
+            populateMappingDropdowns(headers);
+            document.getElementById('mapping-panel').classList.remove('hidden');
+            triggerToast(`Successfully parsed ${headers.length} columns and ${rows.length} rows! Please map column tags below.`, "success");
+        }
+
+        document.getElementById('parse-data-btn').addEventListener('click', handleImportParsing);
+
+        /**
+         * Fills mapping select menus dynamically
+         */
+        function populateMappingDropdowns(headers) {
+            const mappings = ['mapping-name', 'mapping-score', 'mapping-trend', 'mapping-subtext'];
+            
+            mappings.forEach((domId, index) => {
+                const el = document.getElementById(domId);
+                el.innerHTML = '';
+                
+                // Allow optional keys for trend and subtext columns
+                if (domId === 'mapping-trend' || domId === 'mapping-subtext') {
+                    const noneOpt = document.createElement('option');
+                    noneOpt.value = "";
+                    noneOpt.innerText = "-- Disable Column --";
+                    el.appendChild(noneOpt);
+                }
+
+                headers.forEach((header) => {
+                    const opt = document.createElement('option');
+                    opt.value = header;
+                    opt.innerText = header;
+                    el.appendChild(opt);
+                });
+
+                // Auto-match defaults by name heuristics
+                if (domId === 'mapping-name') {
+                    const match = headers.find(h => /name|user|competitor|player|team/i.test(h));
+                    if (match) el.value = match;
+                } else if (domId === 'mapping-score') {
+                    const match = headers.find(h => /score|point|amount|total|value|revenue/i.test(h));
+                    if (match) el.value = match;
+                } else if (domId === 'mapping-trend') {
+                    const match = headers.find(h => /trend|change|shift|delta/i.test(h));
+                    if (match) el.value = match;
+                } else if (domId === 'mapping-subtext') {
+                    const match = headers.find(h => /department|region|country|dept|division/i.test(h));
+                    if (match) el.value = match;
+                }
+            });
+        }
+
+        /**
+         * Alters app's primary branding theme colors dynamically
+         */
+        window.setAccentTheme = function(themeName) {
+            if (!themeConfig[themeName]) return;
+            activeConfig.theme = themeName;
+            
+            // Highlight matching border in admin panel setup
+            document.querySelectorAll('.theme-accent-btn').forEach(btn => {
+                const isSelected = btn.getAttribute('data-theme') === themeName;
+                if (isSelected) {
+                    btn.className = "theme-accent-btn p-2 border rounded-xl text-center text-xs font-semibold transition-all border-indigo-600 bg-indigo-50 text-indigo-700";
+                } else {
+                    btn.className = "theme-accent-btn p-2 border border-slate-200 rounded-xl text-center text-xs font-semibold hover:bg-slate-50 text-slate-600 transition-all";
+                }
+            });
+
+            applyAccentStyling(themeName);
+        }
+
+        function applyAccentStyling(themeKey) {
+            const styling = themeConfig[themeKey] || themeConfig.indigo;
+            
+            // Adjust header elements
+            const adminTrigger = document.getElementById('admin-trigger-btn');
+            if (adminTrigger) {
+                adminTrigger.className = `flex items-center gap-1.5 px-4 py-2 ${styling.primary} hover:opacity-90 text-white rounded-xl text-sm font-semibold shadow-md transition-all`;
+            }
+
+            // Adjust podium 1 highlights
+            const podium1 = document.getElementById('podium-1');
+            if (podium1) {
+                if (themeKey === 'emerald') {
+                    podium1.className = "order-1 md:order-2 bg-gradient-to-b from-emerald-50 to-white rounded-3xl border-2 border-emerald-300 shadow-xl p-8 text-center flex flex-col items-center transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]";
+                    podium1.querySelector('.score-text').className = "score-text text-3xl font-black text-emerald-600";
+                } else if (themeKey === 'rose') {
+                    podium1.className = "order-1 md:order-2 bg-gradient-to-b from-rose-50 to-white rounded-3xl border-2 border-rose-300 shadow-xl p-8 text-center flex flex-col items-center transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]";
+                    podium1.querySelector('.score-text').className = "score-text text-3xl font-black text-rose-600";
+                } else if (themeKey === 'slate') {
+                    podium1.className = "order-1 md:order-2 bg-gradient-to-b from-slate-100 to-white rounded-3xl border-2 border-slate-400 shadow-xl p-8 text-center flex flex-col items-center transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]";
+                    podium1.querySelector('.score-text').className = "score-text text-3xl font-black text-slate-800";
+                } else if (themeKey === 'amber') {
+                    podium1.className = "order-1 md:order-2 bg-gradient-to-b from-amber-50 to-white rounded-3xl border-2 border-amber-300 shadow-xl p-8 text-center flex flex-col items-center transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]";
+                    podium1.querySelector('.score-text').className = "score-text text-3xl font-black text-amber-600";
+                } else {
+                    podium1.className = "order-1 md:order-2 bg-gradient-to-b from-indigo-50 to-white rounded-3xl border-2 border-indigo-300 shadow-xl p-8 text-center flex flex-col items-center transform hover:-translate-y-2 hover:shadow-2xl duration-300 min-h-[260px]";
+                    podium1.querySelector('.score-text').className = "score-text text-3xl font-black text-indigo-600";
+                }
+            }
+        }
+
+        /**
+         * Renders full leaderboard elements (podium & list tables)
+         */
+        function renderLeaderboard() {
+            // Apply title configuration
+            document.getElementById('board-title').innerText = activeConfig.title || "Daily Leaderboard";
+            document.getElementById('board-subtitle').innerText = activeConfig.subtitle || "Real-time sync performance indexes";
+            document.getElementById('board-last-updated').innerText = activeConfig.lastUpdated || "N/A";
+            
+            applyAccentStyling(activeConfig.theme);
+
+            // Filter configuration display controls
+            if (activeConfig.embedSettings && activeConfig.embedSettings.showSearch === false) {
+                document.getElementById('utility-bar').classList.add('hidden');
+            } else {
+                document.getElementById('utility-bar').classList.remove('hidden');
+            }
+
+            // Populate Top Podiums or Hide
+            const showPodiumConfig = activeConfig.embedSettings ? activeConfig.embedSettings.showPodium !== false : true;
+            const hasPodium = showPodiumConfig && activeConfig.rows && activeConfig.rows.length >= 3;
+
+            if (hasPodium) {
+                document.getElementById('podium-section').classList.remove('hidden');
+                
+                // Sort array to safely secure Top 3 rankings
+                const mappedName = activeConfig.columnMappings.nameKey;
+                const mappedScore = activeConfig.columnMappings.scoreKey;
+                const mappedSubtext = activeConfig.columnMappings.subtextKey;
+
+                const sortedList = [...activeConfig.rows].sort((a, b) => {
+                    const scoreA = parseFloat(a[mappedScore]) || 0;
+                    const scoreB = parseFloat(b[mappedScore]) || 0;
+                    return scoreB - scoreA;
+                });
+
+                // Top 1
+                const t1 = sortedList[0];
+                const p1 = document.getElementById('podium-1');
+                p1.querySelector('.name-text').innerText = t1[mappedName] || "No Data";
+                p1.querySelector('.score-text').innerText = Number(t1[mappedScore]).toLocaleString() || "0";
+                p1.querySelector('.subtext-text').innerText = mappedSubtext ? (t1[mappedSubtext] || "") : "";
+
+                // Top 2
+                const t2 = sortedList[1];
+                const p2 = document.getElementById('podium-2');
+                p2.querySelector('.name-text').innerText = t2[mappedName] || "No Data";
+                p2.querySelector('.score-text').innerText = Number(t2[mappedScore]).toLocaleString() || "0";
+                p2.querySelector('.subtext-text').innerText = mappedSubtext ? (t2[mappedSubtext] || "") : "";
+
+                // Top 3
+                const t3 = sortedList[2];
+                const p3 = document.getElementById('podium-3');
+                p3.querySelector('.name-text').innerText = t3[mappedName] || "No Data";
+                p3.querySelector('.score-text').innerText = Number(t3[mappedScore]).toLocaleString() || "0";
+                p3.querySelector('.subtext-text').innerText = mappedSubtext ? (t3[mappedSubtext] || "") : "";
+            } else {
+                document.getElementById('podium-section').classList.add('hidden');
+            }
+
+            // Re-render core details list
+            renderTableRowsOnly();
+        }
+
+        function getFilteredRows() {
+            if (!activeConfig.rows) return [];
+            
+            const nameKey = activeConfig.columnMappings.nameKey;
+            const subtextKey = activeConfig.columnMappings.subtextKey;
+
+            // Simple client search match
+            let filtered = activeConfig.rows;
+            if (searchKeyword.trim() !== "") {
+                filtered = filtered.filter(row => {
+                    const nameVal = String(row[nameKey] || "").toLowerCase();
+                    const subtextVal = subtextKey ? String(row[subtextKey] || "").toLowerCase() : "";
+                    return nameVal.includes(searchKeyword) || subtextVal.includes(searchKeyword);
+                });
+            }
+
+            // Sort entire collection safely descending by numeric values
+            const scoreKey = activeConfig.columnMappings.scoreKey;
+            return filtered.sort((a, b) => {
+                const scoreA = parseFloat(String(a[scoreKey] || "").replace(/[^0-9.-]/g, "")) || 0;
+                const scoreB = parseFloat(String(b[scoreKey] || "").replace(/[^0-9.-]/g, "")) || 0;
+                return scoreB - scoreA;
+            });
+        }
+
+        /**
+         * Re-renders the rows inside the main leaderboard list
+         */
+        function renderTableRowsOnly() {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+
+            const sortedList = getFilteredRows();
+            if (sortedList.length === 0) {
+                tableBody.innerHTML = `
+                    <div class="p-12 text-center text-slate-400">
+                        <i data-lucide="info" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                        <p class="text-sm font-medium">No results match your search keywords.</p>
+                    </div>
+                `;
+                document.getElementById('pagination-info').innerText = "Page 0 of 0";
+                document.getElementById('prev-page-btn').disabled = true;
+                document.getElementById('next-page-btn').disabled = true;
+                lucide.createIcons();
+                return;
+            }
+
+            // Slice list based on pagination setup
+            const pageSize = parseInt(document.getElementById('page-size-select').value);
+            const totalPages = Math.ceil(sortedList.length / pageSize);
+            
+            if (currentPage > totalPages) currentPage = totalPages || 1;
+            
+            const startIdx = (currentPage - 1) * pageSize;
+            const paginatedRows = sortedList.slice(startIdx, startIdx + pageSize);
+
+            document.getElementById('pagination-info').innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prev-page-btn').disabled = currentPage === 1;
+            document.getElementById('next-page-btn').disabled = currentPage === totalPages;
+
+            const nameKey = activeConfig.columnMappings.nameKey;
+            const scoreKey = activeConfig.columnMappings.scoreKey;
+            const trendKey = activeConfig.columnMappings.trendKey;
+            const subtextKey = activeConfig.columnMappings.subtextKey;
+
+            paginatedRows.forEach((row, localIndex) => {
+                // Calculate original absolute ranking within complete dataset
+                const absoluteRank = startIdx + localIndex + 1;
+                
+                // Get display items
+                const personName = row[nameKey] || "-";
+                const displayScore = row[scoreKey] || "0";
+                const rowSubtext = subtextKey ? (row[subtextKey] || "") : "";
+                const trendVal = trendKey ? (row[trendKey] || "") : "";
+
+                // Design Avatar Badge with initials
+                const initials = personName.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase();
+
+                // Build trend indicator icon code
+                let trendIconHtml = "";
+                const cleanTrend = String(trendVal).toLowerCase().trim();
+                
+                if (cleanTrend.startsWith('+') || cleanTrend.includes('up') || parseFloat(cleanTrend) > 0) {
+                    trendIconHtml = `<span class="flex items-center text-emerald-600 gap-0.5 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i> ${trendVal}
+                    </span>`;
+                } else if (cleanTrend.startsWith('-') || cleanTrend.includes('down') || parseFloat(cleanTrend) < 0) {
+                    trendIconHtml = `<span class="flex items-center text-rose-600 gap-0.5 text-xs font-bold bg-rose-50 px-2 py-0.5 rounded-full">
+                        <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i> ${trendVal}
+                    </span>`;
+                } else if (trendVal) {
+                    trendIconHtml = `<span class="flex items-center text-slate-400 gap-0.5 text-xs font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+                        <i data-lucide="minus" class="w-3.5 h-3.5"></i> ${trendVal}
+                    </span>`;
+                }
+
+                // Rank designator classes
+                let rankStyleClasses = "text-slate-400 font-bold bg-slate-100";
+                if (absoluteRank === 1) rankStyleClasses = "bg-amber-100 text-amber-800 font-extrabold ring-2 ring-amber-300";
+                else if (absoluteRank === 2) rankStyleClasses = "bg-slate-200 text-slate-800 font-extrabold";
+                else if (absoluteRank === 3) rankStyleClasses = "bg-orange-100 text-orange-800 font-extrabold";
+
+                const rowEl = document.createElement('div');
+                rowEl.className = "flex items-center justify-between p-4 hover:bg-slate-50/70 transition-all duration-150";
+                rowEl.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <!-- Rank Circle -->
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${rankStyleClasses}">
+                            ${absoluteRank}
+                        </div>
+                        
+                        <!-- Avatar Shield -->
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center text-xs font-black text-slate-500 shadow-sm uppercase">
+                            ${initials || "?"}
+                        </div>
+
+                        <!-- Name & Category Info -->
+                        <div>
+                            <div class="text-sm font-bold text-slate-800">${personName}</div>
+                            ${rowSubtext ? `<div class="text-xs text-slate-400 font-medium">${rowSubtext}</div>` : ""}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <!-- Trend indicator component -->
+                        ${trendIconHtml}
+                        <!-- Score Display -->
+                        <div class="text-right">
+                            <span class="inline-block px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-black tracking-wide min-w-[70px] text-center shadow-sm">
+                                ${Number(displayScore).toLocaleString() || displayScore}
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                tableBody.appendChild(rowEl);
+            });
+
+            // Initialize freshly appended SVG icons
+            lucide.createIcons();
+        }
+
+        /**
+         * Open and configure the sidebar administrative view
+         */
+        window.openAdminModal = function(skipAuth = false) {
+            const modal = document.getElementById('admin-modal');
+            const panel = document.getElementById('admin-panel');
+            
+            modal.classList.remove('pointer-events-none');
+            modal.classList.replace('opacity-0', 'opacity-100');
+            panel.classList.replace('translate-x-full', 'translate-x-0');
+
+            if (isAuthenticated || skipAuth || !activeConfig.passcode) {
+                showAdminConsole();
+            } else {
+                showAdminGate();
+            }
+        }
+
+        window.closeAdminModal = function() {
+            const modal = document.getElementById('admin-modal');
+            const panel = document.getElementById('admin-panel');
+            
+            modal.classList.add('pointer-events-none');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            panel.classList.replace('translate-x-0', 'translate-x-full');
+        }
+
+        document.getElementById('admin-trigger-btn').addEventListener('click', () => openAdminModal(false));
+
+        function showAdminGate() {
+            document.getElementById('admin-auth-screen').classList.remove('hidden');
+            document.getElementById('admin-console-screen').classList.add('hidden');
+            document.getElementById('admin-footer').classList.add('hidden');
+        }
+
+        function showAdminConsole() {
+            document.getElementById('admin-auth-screen').classList.add('hidden');
+            document.getElementById('admin-console-screen').classList.remove('hidden');
+            document.getElementById('admin-footer').classList.remove('hidden');
+            syncAdminPanelValues();
+        }
+
+        /**
+         * Validates admin passcode entry
+         */
+        document.getElementById('verify-passcode-btn').addEventListener('click', () => {
+            const val = document.getElementById('admin-passcode-input').value;
+            if (val === activeConfig.passcode || !activeConfig.passcode) {
+                isAuthenticated = true;
+                showAdminConsole();
+                triggerToast("Authentication verified successfully!", "success");
+            } else {
+                triggerToast("Incorrect password. Please try again.", "error");
+            }
+        });
+
+        /**
+         * Populates the Admin panel form fields to match active config state
+         */
+        function syncAdminPanelValues() {
+            document.getElementById('config-title').value = activeConfig.title || "";
+            document.getElementById('config-subtitle').value = activeConfig.subtitle || "";
+            
+            // Reconstruct plain TSV block for copy-paste textbox backup
+            if (activeConfig.rows && activeConfig.rows.length > 0) {
+                const mappings = activeConfig.columnMappings;
+                const headers = Object.values(mappings).filter(Boolean);
+                
+                // Add unmapped columns to allow recovery of original shapes
+                const testRow = activeConfig.rows[0];
+                Object.keys(testRow).forEach(key => {
+                    if (!headers.includes(key)) headers.push(key);
+                });
+
+                let plainText = headers.join("\t") + "\n";
+                activeConfig.rows.forEach(row => {
+                    plainText += headers.map(h => row[h] || "").join("\t") + "\n";
+                });
+                document.getElementById('config-raw-data').value = plainText;
+            }
+
+            // Sync embed controls
+            if (activeConfig.embedSettings) {
+                document.getElementById('opt-show-podium').checked = activeConfig.embedSettings.showPodium !== false;
+                document.getElementById('opt-show-search').checked = activeConfig.embedSettings.showSearch !== false;
+            }
+
+            // Build iframe embed code
+            const currentUrl = window.location.href.split('?')[0];
+            const embedStr = `<iframe src="${currentUrl}?embed=true" width="100%" height="700" style="border:none; border-radius:16px; background: transparent;" allowtransparency="true"></iframe>`;
+            document.getElementById('embed-code-box').value = embedStr;
+        }
+
+        /**
+         * Persists local configuration inputs up to Cloud / Local Storage
+         */
+        document.getElementById('save-config-btn').addEventListener('click', async () => {
+            const pendingTitle = document.getElementById('config-title').value.trim();
+            const pendingSubtitle = document.getElementById('config-subtitle').value.trim();
+            
+            // Build temporary payload state checks
+            let finalRows = activeConfig.rows;
+            let finalHeaders = activeConfig.headers;
+            let finalMappings = activeConfig.columnMappings;
+
+            if (parsedPayload) {
+                finalRows = parsedPayload.rows;
+                finalHeaders = parsedPayload.headers;
+                finalMappings = {
+                    nameKey: document.getElementById('mapping-name').value,
+                    scoreKey: document.getElementById('mapping-score').value,
+                    trendKey: document.getElementById('mapping-trend').value,
+                    subtextKey: document.getElementById('mapping-subtext').value
+                };
+            }
+
+            if (!finalMappings.nameKey || !finalMappings.scoreKey) {
+                triggerToast("Name Column and Score Column are required to compile ranks.", "error");
+                return;
+            }
+
+            // Update configuration state object
+            activeConfig.title = pendingTitle || "Daily Leaderboard";
+            activeConfig.subtitle = pendingSubtitle;
+            activeConfig.headers = finalHeaders;
+            activeConfig.rows = finalRows;
+            activeConfig.columnMappings = finalMappings;
+            activeConfig.embedSettings = {
+                showPodium: document.getElementById('opt-show-podium').checked,
+                showSearch: document.getElementById('opt-show-search').checked
+            };
+            activeConfig.lastUpdated = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            // Persist operation
+            if (isCloudActive) {
+                try {
+                    const docPath = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', 'current');
+                    await setDoc(docPath, activeConfig);
+                    triggerToast("Leaderboard synced to cloud instantly!", "success");
+                } catch (err) {
+                    console.error("Cloud publishing blocked, switching back to local storage.", err);
+                    saveToLocalStorageOnly();
+                }
+            } else {
+                saveToLocalStorageOnly();
+            }
+
+            parsedPayload = null; // Flush temp cache
+            document.getElementById('mapping-panel').classList.add('hidden');
+            closeAdminModal();
+            renderLeaderboard();
+        });
+
+        function saveToLocalStorageOnly() {
+            localStorage.setItem(`ldr_cfg_${appId}`, JSON.stringify(activeConfig));
+            triggerToast("Saved successfully to local browser state!", "success");
+        }
+
+        /**
+         * Handle Administrative Passcode change
+         */
+        document.getElementById('update-passcode-btn').addEventListener('click', async () => {
+            const nextKey = document.getElementById('config-passcode').value.trim();
+            if (!nextKey) {
+                triggerToast("Passcode cannot be blank.", "error");
+                return;
+            }
+
+            activeConfig.passcode = nextKey;
+            
+            if (isCloudActive) {
+                try {
+                    const docPath = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', 'current');
+                    await setDoc(docPath, activeConfig);
+                    triggerToast("Admin key updated successfully across all embeds!", "success");
+                } catch (e) {
+                    localStorage.setItem(`ldr_cfg_${appId}`, JSON.stringify(activeConfig));
+                    triggerToast("Key updated locally on this device.", "success");
+                }
+            } else {
+                localStorage.setItem(`ldr_cfg_${appId}`, JSON.stringify(activeConfig));
+                triggerToast("Key updated locally on this device.", "success");
+            }
+            document.getElementById('config-passcode').value = "";
+        });
+
+        // Copy embed snippet functionality
+        document.getElementById('copy-embed-btn').addEventListener('click', () => {
+            const embedInput = document.getElementById('embed-code-box');
+            embedInput.select();
+            document.execCommand('copy');
+            triggerToast("Embed snippet copied to clipboard!", "success");
+        });
+
+        /**
+         * Renders toast banners beautifully
+         */
+        function triggerToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const alertBox = document.createElement('div');
+            
+            const baseClass = "p-4 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transform translate-y-2 opacity-0 transition-all duration-300 pointer-events-auto max-w-sm border";
+            const typeClass = type === "success" 
+                ? "bg-slate-900 border-slate-800 text-emerald-400" 
+                : "bg-rose-950 border-rose-800 text-rose-300";
+
+            alertBox.className = `${baseClass} ${typeClass}`;
+            
+            const icon = type === "success" ? "check-circle" : "alert-triangle";
+            alertBox.innerHTML = `
+                <i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(alertBox);
+            lucide.createIcons();
+
+            // Slide in animation delay
+            setTimeout(() => {
+                alertBox.classList.replace('translate-y-2', 'translate-y-0');
+                alertBox.classList.replace('opacity-0', 'opacity-100');
+            }, 10);
+
+            // Dismiss timeline
+            setTimeout(() => {
+                alertBox.classList.replace('opacity-100', 'opacity-0');
+                alertBox.classList.add('translate-y-2');
+                setTimeout(() => {
+                    alertBox.remove();
+                }, 300);
+            }, 3500);
+        }
+
+        // Initialize App
+        window.onload = function() {
+            bootSystem();
+            lucide.createIcons();
+        };
+
+    </script>
+</body>
+</html>
